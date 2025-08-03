@@ -1,0 +1,16 @@
+#SPDX-License-Identifier: MIT-0
+---
+elastic_password: "changeme"
+kibana_password: "changeme"
+stack_version: "8.14.0"
+cluster_name: "docker-cluster"
+license: "basic"
+es_port: 9200
+cluster_port: 9300
+kibana_port: 5601
+mem_limit: 2147483648
+project_dir: "/opt/elasticsearch_stack"
+restart_policy: "always"
+es01: "node1 IP"
+es02: "node2 IP"
+es03: "node3 IP"

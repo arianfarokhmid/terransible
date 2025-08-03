@@ -1,0 +1,68 @@
+- name: Ensure devops group exists
+  group:
+    name: "{{ devops_group }}"
+    state: present
+
+
+- name: Create users, set initial password and add to group
+  user:
+    name: "{{ item }}"
+    groups: "{{ devops_group }}"
+    append: yes
+    shell: /bin/bash
+    password: "{{ '1234' | password_hash('sha512') }}"
+    update_password: on_create
+  loop: "{{ devops_users }}"
+
+
+- name: Check if user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ item }}"
+  register: user_info
+  loop: "{{ devops_users }}"
+
+- name: Force password change on first login
+  command: chage -d 0 {{ item }}
+  loop: "{{ devops_users }}"
+  when: create_new_user is change
+  changed_when: false
+
+
+- name: Create .ssh directory
+  file:
+    path: "/home/{{ item }}/.ssh"
+    state: directory
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0700'
+  loop: "{{ devops_users }}"
+
+
+- name: Copy SSH public keys
+  copy:
+    src: "ssh_keys/{{ item }}.pub"
+    dest: "/home/{{ item }}/.ssh/authorized_keys"
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0600'
+  loop: "{{ devops_users }}"
+
+
+- name: Set sudo rules for devops group
+  template:
+    src: devops_sudoers.j2
+    dest: /etc/sudoers.d/devops
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+
+
+- name: Add +a (append-only) to auth.log if not set
+  file:
+    path: /var/log/auth.log
+    attr: +a
+  register: resolv_file
+  changed_when: "'a' not in resolv_file.diff.before.attributes"
+

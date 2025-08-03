@@ -1,0 +1,110 @@
+- name: Ensure vm.max_map_count is set
+  sysctl:
+    name: vm.max_map_count
+    value: '262144'
+    state: present
+    reload: yes
+
+- name: Ensure project directory exists
+  file:
+    path: "{{ project_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create certs directory
+  file:
+    path: "{{ project_dir }}/certs"
+    state: directory
+    mode: '0755'
+
+- name: Create .env file
+  template:
+    src: env.j2
+    dest: "{{ project_dir }}/.env"
+    mode: '0644'  
+
+- name: Copy docker-compose files to cluster nodes
+  delegate_to: "{{ item.host }}"
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ project_dir }}/{{ item.src }}"
+  loop:
+    - { host: node1, src: "kibana.yaml" }
+    - { host: node1, src: "elastic-node1.yaml" }
+    - { host: node2, src: "elastic-node2.yaml" }
+    - { host: node3, src: "elastic-node3.yaml" }
+  register: copy_results
+
+- name: deploy elasticsearch on node1 and setup certs
+  delegate_to: node1
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_dir }}"
+    files:
+      - "{{ project_dir }}/elastic-node1.yaml"
+    state: present
+  register: deploy_node1
+  when: copy_results is succeeded
+
+- name: Find cert files on node1
+  delegate_to: node1
+  find:
+    paths: "{{ project_dir }}/certs/"
+    file_type: file
+  register: cert_files
+  when: deploy_node1 is succeeded
+  run_once: true
+
+- name: Fetch cert files from node1
+  delegate_to: node1
+  fetch:
+    src: "{{ item.path }}"
+    dest: "{{ playbook_dir }}/roles/elasticsearch-cluster/certs/"
+    flat: no
+  loop: "{{ cert_files.files }}"
+  when: deploy_node1 is changed
+  run_once: true
+  
+- name: Get list of cert files from control node
+  delegate_to: localhost
+  run_once: true
+  find:
+    paths: "{{ playbook_dir }}/roles/elasticsearch-cluster/certs/"
+    file_type: file
+  register: cert_files_raw
+
+- name: Set fact with cert file list
+  set_fact:
+    cert_files: "{{ cert_files_raw.files }}"
+  when: cert_files_raw is defined
+  run_once: true
+
+- name: Copy cert files to each node (except node1)
+  copy:
+    src: "{{ item.path }}"
+    dest: "{{ project_dir }}/certs/"
+    mode: '0644'
+  loop: "{{ cert_files }}"
+  when: inventory_hostname != 'node1'
+
+- name: deploy elasticsearch on other nodes
+  delegate_to: "{{ item.host }}"
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_dir }}"
+    files:
+      - "{{ project_dir }}/{{item.src}}"
+    state: present
+  loop:
+      - { host: node2, src: "elastic-node2.yaml" }
+      - { host: node3, src: "elastic-node3.yaml" }    
+  register: elastic_deploy
+  when: deploy_node1 is changed
+
+
+- name: deploy kibana on node1
+  delegate_to: node1
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_dir }}"
+    files:
+      - "{{ project_dir }}/kibana.yaml"
+    state: present
+  when: elastic_deploy is changed

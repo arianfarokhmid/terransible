@@ -1,0 +1,21 @@
+devops_group: devops
+
+devops_users:
+    - test
+
+dangerous_cmds:
+    - /bin/bash
+    - /usr/bin/bash
+    - /bin/sh
+    - /usr/bin/sh
+    - /usr/bin/python*
+    - /usr/bin/perl
+    - /usr/bin/php
+    - /usr/bin/vim
+    - /usr/bin/nano
+    - /usr/bin/less
+    - /usr/bin/sudo
+    - /usr/bin/su
+    - /usr/bin/chattr
+    - /usr/bin/lsattr
+    - /bin/rm

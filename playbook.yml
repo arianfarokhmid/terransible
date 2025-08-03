@@ -1,0 +1,50 @@
+- name: Create and secure devops users
+  hosts: all
+  become: true
+  roles:
+    - devops-users
+  tags: [create-user]
+
+
+- hosts: all
+  roles:
+    - role: redis-single
+  gather_facts: yes
+  any_errors_fatal: true
+  become: yes
+  tags: [redis-single-node]
+
+
+- hosts: all
+  roles:
+    - role: elasticsearch-single
+  gather_facts: yes
+  any_errors_fatal: true
+  become: yes
+  tags: [elastic-single-node]
+
+
+- name: deploy elasticsearch cluster
+  hosts: all
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: elasticsearch-cluster
+  vars:
+    node1: "node1"
+    node2: "node2"
+    node3: "node3"
+    project_dir: "{{ project_dir }}"
+  tags: [elastic-cluster]
+
+# - name: Cleanup fetched certs from control node
+#   hosts: localhost
+#   gather_facts: no
+#   tasks:
+#     - name: Remove local certs directory
+#       file:
+#         path: "{{ playbook_dir }}/certs"
+#         state: absent
+#   tags: [cleanup,cluster]
+  
+                  

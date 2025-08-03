@@ -1,0 +1,25 @@
+version: "3"
+services:
+  redis:
+    container_name: redis
+    image: redis:${IMAGE_VERSION}
+    hostname: redis
+    restart: ${RESTART_POLICY}
+    ports:
+      - ${REDIS_PORT}:6379
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - redis-data:/data
+    command: ["redis-server"] 
+    cpus: 2
+    mem_limit: ${MEM_LIMIT}
+
+volumes:
+  redis-data:
+    driver: local
