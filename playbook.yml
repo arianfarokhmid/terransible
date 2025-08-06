@@ -15,6 +15,15 @@
   tags: [redis-single-node]
 
 
+
+- hosts: all
+  roles:
+    - role: mongo-single
+  gather_facts: yes
+  any_errors_fatal: true
+  become: yes
+  tags: [mongo-single-node]
+
 - hosts: all
   roles:
     - role: elasticsearch-single

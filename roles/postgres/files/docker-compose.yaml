@@ -1,0 +1,34 @@
+version: "3"
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:${ IMAGE_VERSION }
+    hostname: postgres
+    restart: ${ RESTART_POLICY }
+    ports:
+      - ${ POSTGRES_PORT }:5432
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - postgres-data:/var/lib/postgresql/data
+      - postgres-scripts:/opt/scripts
+      - postgres-backups:/opt/backups
+    environment:
+      - POSTGRES_PASSWORD=${ POSTGRES_PASSWORD }
+    healthcheck:
+      #test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: pg_isready -U postgres || killall postgres
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    cpus: 8
+    mem_limit: ${ MEM_LIMIT }
+    shm_size: 1g
+
+volumes:
+  postgres-data:
+    driver: local
+  postgres-scripts:
+    driver: local
+  postgres-backups:
+    driver: local
